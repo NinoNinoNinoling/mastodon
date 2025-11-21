@@ -6,25 +6,23 @@ import ImmutablePropTypes from 'react-immutable-proptypes';
 import ImmutablePureComponent from 'react-immutable-pure-component';
 import { connect } from 'react-redux';
 
-import { List as ImmutableList } from 'immutable';
-
 import { changeCompose, changeComposeVisibility, submitCompose } from 'mastodon/actions/compose';
 import { fetchStatus } from 'mastodon/actions/statuses';
 import { LoadingIndicator } from 'mastodon/components/loading_indicator';
 
 import ChatInput from './chat_input';
-import ChatMessageList from './chat_message_list';
+import ChatMessage from './chat_message';
 
 const messages = defineMessages({
   title: { id: 'chat.title', defaultMessage: 'Conversation' },
 });
 
 const mapStateToProps = (state, { conversation }) => {
-  const statusIds = conversation ? conversation.get('status_ids', ImmutableList()) : ImmutableList();
+  const lastStatusId = conversation ? conversation.get('last_status') : null;
+  const status = lastStatusId ? state.getIn(['statuses', lastStatusId]) : null;
 
   return {
-    statusIds,
-    statuses: state.get('statuses'),
+    status,
     currentAccountId: state.getIn(['meta', 'me']),
   };
 };
@@ -33,36 +31,31 @@ class ChatView extends ImmutablePureComponent {
 
   static propTypes = {
     conversation: ImmutablePropTypes.map,
-    statusIds: ImmutablePropTypes.list,
-    statuses: ImmutablePropTypes.map,
+    status: ImmutablePropTypes.map,
     currentAccountId: PropTypes.string,
     dispatch: PropTypes.func.isRequired,
     intl: PropTypes.object.isRequired,
   };
 
   componentDidMount() {
-    this.loadMessages();
+    this.loadStatus();
   }
 
   componentDidUpdate(prevProps) {
     if (this.props.conversation !== prevProps.conversation) {
-      this.loadMessages();
+      this.loadStatus();
     }
   }
 
-  loadMessages = () => {
-    const { conversation, dispatch, statuses } = this.props;
+  loadStatus = () => {
+    const { conversation, status, dispatch } = this.props;
 
     if (!conversation) return;
 
-    const statusIds = conversation.get('status_ids', ImmutableList());
-
-    // Load any missing statuses
-    statusIds.forEach(statusId => {
-      if (!statuses.get(String(statusId))) {
-        dispatch(fetchStatus(statusId));
-      }
-    });
+    const lastStatusId = conversation.get('last_status');
+    if (lastStatusId && !status) {
+      dispatch(fetchStatus(lastStatusId));
+    }
   };
 
   handleSend = (text) => {
@@ -86,7 +79,7 @@ class ChatView extends ImmutablePureComponent {
   };
 
   render() {
-    const { conversation, statusIds, statuses, currentAccountId, intl } = this.props;
+    const { conversation, status, currentAccountId } = this.props;
 
     if (!conversation) {
       return (
@@ -106,18 +99,27 @@ class ChatView extends ImmutablePureComponent {
       ? participants.map(a => a.get('display_name') || a.get('username')).join(', ')
       : '';
 
+    const isOwn = status && status.getIn(['account', 'id']) === currentAccountId;
+
     return (
       <div className='chat-view'>
         <div className='chat-view__header'>
           <h2 className='chat-view__title'>{participantNames}</h2>
         </div>
 
-        <ChatMessageList
-          statusIds={statusIds}
-          statuses={statuses}
-          currentAccountId={currentAccountId}
-          isLoading={false}
-        />
+        <div className='chat-message-list'>
+          <div className='chat-message-list__scroll'>
+            {status ? (
+              <ChatMessage
+                status={status}
+                isOwn={isOwn}
+                showAvatar={true}
+              />
+            ) : (
+              <LoadingIndicator />
+            )}
+          </div>
+        </div>
 
         <ChatInput
           conversation={conversation}
