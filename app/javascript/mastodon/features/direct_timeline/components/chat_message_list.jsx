@@ -1,13 +1,9 @@
 import PropTypes from 'prop-types';
-import { PureComponent } from 'react';
 
 import ImmutablePropTypes from 'react-immutable-proptypes';
 import ImmutablePureComponent from 'react-immutable-pure-component';
 
-import { List as ImmutableList } from 'immutable';
-
 import { LoadingIndicator } from 'mastodon/components/loading_indicator';
-import ScrollableList from 'mastodon/components/scrollable_list';
 
 import ChatMessage from './chat_message';
 
