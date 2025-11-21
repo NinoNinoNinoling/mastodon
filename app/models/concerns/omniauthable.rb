@@ -19,17 +19,18 @@ module Omniauthable
   end
 
   class_methods do
-    def find_for_oauth(auth, signed_in_resource = nil)
+    def find_for_omniauth(auth, signed_in_resource = nil)
       # EOLE-SSO Patch
       auth.uid = (auth.uid[0][:uid] || auth.uid[0][:user]) if auth.uid.is_a? Hashie::Array
-      identity = Identity.find_for_oauth(auth)
+      identity = Identity.find_for_omniauth(auth)
 
       # If a signed_in_resource is provided it always overrides the existing user
       # to prevent the identity being locked with accidentally created accounts.
       # Note that this may leave zombie accounts (with no associated identity) which
       # can be cleaned up at a later date.
       user   = signed_in_resource || identity.user
-      user ||= create_for_oauth(auth)
+      user ||= reattach_for_auth(auth)
+      user ||= create_for_auth(auth)
 
       if identity.user.nil?
         identity.user = user
@@ -39,19 +40,35 @@ module Omniauthable
       user
     end
 
-    def create_for_oauth(auth)
-      # Check if the user exists with provided email. If no email was provided,
+    private
+
+    def reattach_for_auth(auth)
+      # If allowed, check if a user exists with the provided email address,
+      # and return it if they does not have an associated identity with the
+      # current authentication provider.
+
+      # This can be used to provide a choice of alternative auth providers
+      # or provide smooth gradual transition between multiple auth providers,
+      # but this is discouraged because any insecure provider will put *all*
+      # local users at risk, regardless of which provider they registered with.
+
+      return unless ENV['ALLOW_UNSAFE_AUTH_PROVIDER_REATTACH'] == 'true'
+
+      email, email_is_verified = email_from_auth(auth)
+      return unless email_is_verified
+
+      user = User.find_by(email: email)
+      return if user.nil? || Identity.exists?(provider: auth.provider, user_id: user.id)
+
+      user
+    end
+
+    def create_for_auth(auth)
+      # Create a user for the given auth params. If no email was provided,
       # we assign a temporary email and ask the user to verify it on
       # the next step via Auth::SetupController.show
 
-      strategy          = Devise.omniauth_configs[auth.provider.to_sym].strategy
-      assume_verified   = strategy&.security&.assume_email_is_verified
-      email_is_verified = auth.info.verified || auth.info.verified_email || auth.info.email_verified || assume_verified
-      email             = auth.info.verified_email || auth.info.email
-
-      user = User.find_by(email: email) if email_is_verified
-
-      return user unless user.nil?
+      email, email_is_verified = email_from_auth(auth)
 
       user = User.new(user_params_from_auth(email, auth))
 
@@ -66,7 +83,14 @@ module Omniauthable
       user
     end
 
-    private
+    def email_from_auth(auth)
+      strategy          = Devise.omniauth_configs[auth.provider.to_sym].strategy
+      assume_verified   = strategy&.security&.assume_email_is_verified
+      email_is_verified = auth.info.verified || auth.info.verified_email || auth.info.email_verified || assume_verified
+      email             = auth.info.verified_email || auth.info.email
+
+      [email, email_is_verified]
+    end
 
     def user_params_from_auth(email, auth)
       {
@@ -75,7 +99,7 @@ module Omniauthable
         external: true,
         account_attributes: {
           username: ensure_unique_username(ensure_valid_username(auth.uid)),
-          display_name: auth.info.full_name || auth.info.name || [auth.info.first_name, auth.info.last_name].join(' '),
+          display_name: display_name_from_auth(auth),
         },
       }
     end
@@ -96,6 +120,11 @@ module Omniauthable
       starting_username = starting_username.split('@')[0]
       temp_username = starting_username.gsub(/[^a-z0-9_]+/i, '')
       temp_username.truncate(30, omission: '')
+    end
+
+    def display_name_from_auth(auth)
+      display_name = auth.info.full_name || auth.info.name || [auth.info.first_name, auth.info.last_name].join(' ')
+      display_name.truncate(Account::DISPLAY_NAME_LENGTH_LIMIT, omission: '')
     end
   end
 end

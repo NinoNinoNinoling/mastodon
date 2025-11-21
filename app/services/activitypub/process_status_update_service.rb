@@ -23,6 +23,9 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
 
     if @status_parser.edited_at.present? && (@status.edited_at.nil? || @status_parser.edited_at > @status.edited_at)
       handle_explicit_update!
+    elsif @status.edited_at.present? && (@status_parser.edited_at.nil? || @status_parser.edited_at < @status.edited_at)
+      # This is an older update, reject it
+      return @status
     else
       handle_implicit_update!
     end
@@ -102,6 +105,8 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
     @status.ordered_media_attachment_ids = @next_media_attachments.map(&:id)
 
     @media_attachments_changed = true if @status.ordered_media_attachment_ids != previous_media_attachments_ids
+
+    @status.media_attachments.reload if @media_attachments_changed
   end
 
   def download_media_files!
@@ -172,9 +177,9 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
 
     as_array(@json['tag']).each do |tag|
       if equals_or_includes?(tag['type'], 'Hashtag')
-        @raw_tags << tag['name']
+        @raw_tags << tag['name'] if tag['name'].present?
       elsif equals_or_includes?(tag['type'], 'Mention')
-        @raw_mentions << tag['href']
+        @raw_mentions << tag['href'] if tag['href'].present?
       elsif equals_or_includes?(tag['type'], 'Emoji')
         @raw_emojis << tag
       end
@@ -186,7 +191,26 @@ class ActivityPub::ProcessStatusUpdateService < BaseService
   end
 
   def update_tags!
-    @status.tags = Tag.find_or_create_by_names(@raw_tags)
+    previous_tags = @status.tags.to_a
+    current_tags = @status.tags = Tag.find_or_create_by_names(@raw_tags)
+
+    return unless @status.distributable?
+
+    added_tags = current_tags - previous_tags
+
+    unless added_tags.empty?
+      @account.featured_tags.where(tag_id: added_tags.pluck(:id)).find_each do |featured_tag|
+        featured_tag.increment(@status.created_at)
+      end
+    end
+
+    removed_tags = previous_tags - current_tags
+
+    return if removed_tags.empty?
+
+    @account.featured_tags.where(tag_id: removed_tags.pluck(:id)).find_each do |featured_tag|
+      featured_tag.decrement(@status)
+    end
   end
 
   def update_mentions!

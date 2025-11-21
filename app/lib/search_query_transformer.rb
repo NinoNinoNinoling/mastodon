@@ -35,7 +35,7 @@ class SearchQueryTransformer < Parslet::Transform
     private
 
     def clauses_by_operator
-      @clauses_by_operator ||= @clauses.compact.chunk(&:operator).to_h
+      @clauses_by_operator ||= @clauses.compact.group_by(&:operator)
     end
 
     def flags_from_clauses!
@@ -223,7 +223,7 @@ class SearchQueryTransformer < Parslet::Transform
   end
 
   rule(clause: subtree(:clause)) do
-    prefix   = clause[:prefix][:term].to_s if clause[:prefix]
+    prefix   = clause[:prefix][:term].to_s.downcase if clause[:prefix]
     operator = clause[:operator]&.to_s
     term     = clause[:phrase] ? clause[:phrase].map { |term| term[:term].to_s }.join(' ') : clause[:term].to_s
 

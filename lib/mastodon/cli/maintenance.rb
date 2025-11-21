@@ -39,6 +39,7 @@ module Mastodon::CLI
     class Webhook < ApplicationRecord; end
     class BulkImport < ApplicationRecord; end
     class SoftwareUpdate < ApplicationRecord; end
+    class TagFollow < ApplicationRecord; end
 
     class PreviewCard < ApplicationRecord
       self.inheritance_column = false
@@ -89,6 +90,7 @@ module Mastodon::CLI
         owned_classes << AccountIdentityProof if ActiveRecord::Base.connection.table_exists?(:account_identity_proofs)
         owned_classes << Appeal if ActiveRecord::Base.connection.table_exists?(:appeals)
         owned_classes << BulkImport if ActiveRecord::Base.connection.table_exists?(:bulk_imports)
+        owned_classes << TagFollow if ActiveRecord::Base.connection.table_exists?(:tag_follows)
 
         owned_classes.each do |klass|
           klass.where(account_id: other_account.id).find_each do |record|
@@ -224,7 +226,7 @@ module Mastodon::CLI
         users = User.where(id: row['ids'].split(',')).sort_by(&:updated_at).reverse
         ref_user = users.shift
         say "Multiple users registered with e-mail address #{ref_user.email}.", :yellow
-        say "e-mail will be disabled for the following accounts: #{user.map(&:account).map(&:acct).join(', ')}", :yellow
+        say "e-mail will be disabled for the following accounts: #{users.map { |user| user.account.acct }.join(', ')}", :yellow
         say 'Please reach out to them and set another address with `tootctl account modify` or delete them.', :yellow
 
         users.each_with_index do |user, index|

@@ -162,6 +162,7 @@ RSpec.describe FeedManager do
         allow(List).to receive(:where).and_return(list)
         status = Fabricate(:status, text: 'I post a lot', account: bob)
         expect(described_class.instance.filter?(:home, status, alice)).to be true
+        expect(described_class.instance.filter(:home, status, alice)).to be :skip_home
       end
 
       it 'returns true for reblog from followee on exclusive list' do
@@ -172,6 +173,7 @@ RSpec.describe FeedManager do
         status = Fabricate(:status, text: 'I post a lot', account: bob)
         reblog = Fabricate(:status, reblog: status, account: jeff)
         expect(described_class.instance.filter?(:home, reblog, alice)).to be true
+        expect(described_class.instance.filter(:home, reblog, alice)).to be :skip_home
       end
 
       it 'returns false for post from followee on non-exclusive list' do
@@ -522,6 +524,44 @@ RSpec.describe FeedManager do
 
       deletion = Oj.dump(event: :delete, payload: status.id.to_s)
       expect(redis).to have_received(:publish).with("timeline:#{receiver.id}", deletion)
+    end
+  end
+
+  describe '#unmerge_tag_from_home' do
+    let(:receiver) { Fabricate(:account) }
+    let(:tag) { Fabricate(:tag) }
+
+    it 'leaves a tagged status' do
+      status = Fabricate(:status)
+      status.tags << tag
+      described_class.instance.push_to_home(receiver, status)
+
+      described_class.instance.unmerge_tag_from_home(tag, receiver)
+
+      expect(redis.zrange("feed:home:#{receiver.id}", 0, -1)).to_not include(status.id.to_s)
+    end
+
+    it 'remains a tagged status written by receiver\'s followee' do
+      followee = Fabricate(:account)
+      receiver.follow!(followee)
+
+      status = Fabricate(:status, account: followee)
+      status.tags << tag
+      described_class.instance.push_to_home(receiver, status)
+
+      described_class.instance.unmerge_tag_from_home(tag, receiver)
+
+      expect(redis.zrange("feed:home:#{receiver.id}", 0, -1)).to include(status.id.to_s)
+    end
+
+    it 'remains a tagged status written by receiver' do
+      status = Fabricate(:status, account: receiver)
+      status.tags << tag
+      described_class.instance.push_to_home(receiver, status)
+
+      described_class.instance.unmerge_tag_from_home(tag, receiver)
+
+      expect(redis.zrange("feed:home:#{receiver.id}", 0, -1)).to include(status.id.to_s)
     end
   end
 

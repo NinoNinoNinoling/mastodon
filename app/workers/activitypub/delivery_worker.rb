@@ -23,9 +23,10 @@ class ActivityPub::DeliveryWorker
   HEADERS = { 'Content-Type' => 'application/activity+json' }.freeze
 
   def perform(json, source_account_id, inbox_url, options = {})
-    return unless DeliveryFailureTracker.available?(inbox_url)
-
     @options        = options.with_indifferent_access
+
+    return unless @options[:bypass_availability] || DeliveryFailureTracker.available?(inbox_url)
+
     @json           = json
     @source_account = Account.find(source_account_id)
     @inbox_url      = inbox_url
@@ -61,7 +62,7 @@ class ActivityPub::DeliveryWorker
     light = Stoplight(@inbox_url) do
       request_pool.with(@host) do |http_client|
         build_request(http_client).perform do |response|
-          raise Mastodon::UnexpectedResponseError, response unless response_successful?(response) || response_error_unsalvageable?(response)
+          raise Mastodon::UnexpectedResponseError, response unless response_successful?(response) || response_error_unsalvageable?(response) || unsalvageable_authorization_failure?(response)
 
           @performed = true
         end
@@ -71,6 +72,10 @@ class ActivityPub::DeliveryWorker
     light.with_threshold(STOPLIGHT_FAILURE_THRESHOLD)
          .with_cool_off_time(STOPLIGHT_COOLDOWN)
          .run
+  end
+
+  def unsalvageable_authorization_failure?(response)
+    @source_account.suspended_permanently? && response.code == 401
   end
 
   def failure_tracker

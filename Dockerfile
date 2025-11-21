@@ -2,7 +2,7 @@
 # This needs to be bookworm-slim because the Ruby image is built on bookworm-slim
 ARG NODE_VERSION="20.6-bookworm-slim"
 
-FROM ghcr.io/moritzheiber/ruby-jemalloc:3.2.2-slim as ruby
+FROM ghcr.io/moritzheiber/ruby-jemalloc:3.2.3-slim as ruby
 FROM node:${NODE_VERSION} as build
 
 COPY --link --from=ruby /opt/ruby /opt/ruby
@@ -28,6 +28,7 @@ RUN apt-get update && \
         libgdbm-dev \
         libgmp-dev \
         libssl-dev \
+        libyaml-dev \
         libyaml-0-2 \
         ca-certificates \
         libreadline8 \
@@ -56,6 +57,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND="noninteractive" \
     PATH="${PATH}:/opt/ruby/bin:/opt/mastodon/bin"
 
+# Add backport repository for some specific packages where we need the latest version
+RUN echo 'deb http://deb.debian.org/debian bookworm-backports main' >> /etc/apt/sources.list
+
 # Ignoring these here since we don't want to pin any versions and the Debian image removes apt-get content after use
 # hadolint ignore=DL3008,DL3009
 RUN apt-get update && \
@@ -73,6 +77,7 @@ RUN apt-get update && \
         libicu72 \
         libidn12 \
         libyaml-0-2 \
+        libheif1/bookworm-backports \
         file \
         ca-certificates \
         tzdata \

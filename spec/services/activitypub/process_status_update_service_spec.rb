@@ -292,16 +292,22 @@ RSpec.describe ActivityPub::ProcessStatusUpdateService, type: :service do
           updated: '2021-09-08T22:39:25Z',
           tag: [
             { type: 'Hashtag', name: 'foo' },
+            { type: 'Hashtag', name: 'bar' },
           ],
         }
       end
 
       before do
-        subject.call(status, json, json)
+        status.account.featured_tags.create!(name: 'bar')
+        status.account.featured_tags.create!(name: 'test')
       end
 
-      it 'updates tags' do
-        expect(status.tags.reload.map(&:name)).to eq %w(foo)
+      it 'updates tags and featured tags' do
+        expect { subject.call(status, json, json) }
+          .to change { status.tags.reload.pluck(:name) }.from(%w(test foo)).to(%w(foo bar))
+          .and change { status.account.featured_tags.find_by(name: 'test').statuses_count }.by(-1)
+          .and change { status.account.featured_tags.find_by(name: 'bar').statuses_count }.by(1)
+          .and change { status.account.featured_tags.find_by(name: 'bar').last_status_at }.from(nil).to(be_present)
       end
     end
 
@@ -359,6 +365,42 @@ RSpec.describe ActivityPub::ProcessStatusUpdateService, type: :service do
 
       it 'records media change in edit' do
         expect(status.edits.reload.last.ordered_media_attachment_ids).to_not be_empty
+      end
+    end
+
+    context 'when originally without media attachments and text is removed' do
+      before do
+        stub_request(:get, 'https://example.com/foo.png').to_return(body: attachment_fixture('emojo.png'))
+      end
+
+      let(:payload) do
+        {
+          '@context': 'https://www.w3.org/ns/activitystreams',
+          id: 'foo',
+          type: 'Note',
+          content: '',
+          updated: '2021-09-08T22:39:25Z',
+          attachment: [
+            { type: 'Image', mediaType: 'image/png', url: 'https://example.com/foo.png' },
+          ],
+        }
+      end
+
+      it 'updates media attachments, fetches attachment, records media and text removal in edit' do
+        subject.call(status, json, json)
+
+        expect(status.reload.ordered_media_attachments.first)
+          .to be_present
+          .and(have_attributes(remote_url: 'https://example.com/foo.png'))
+
+        expect(a_request(:get, 'https://example.com/foo.png'))
+          .to have_been_made
+
+        expect(status.edits.reload.last.ordered_media_attachment_ids)
+          .to_not be_empty
+
+        expect(status.edits.reload.last.text)
+          .to_not be_present
       end
     end
 
