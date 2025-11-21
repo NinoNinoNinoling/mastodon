@@ -54,7 +54,6 @@ class FanOutOnWriteService < BaseService
         notify_mentioned_accounts!
       end
       deliver_to_conversation!
-
     end
   end
 
