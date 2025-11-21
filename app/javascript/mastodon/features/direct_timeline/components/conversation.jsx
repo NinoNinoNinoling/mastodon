@@ -45,8 +45,6 @@ class Conversation extends ImmutablePureComponent {
     markRead: PropTypes.func.isRequired,
     delete: PropTypes.func.isRequired,
     intl: PropTypes.object.isRequired,
-    onSelect: PropTypes.func,
-    isSelected: PropTypes.bool,
   };
 
   handleMouseEnter = ({ currentTarget }) => {
@@ -76,18 +74,17 @@ class Conversation extends ImmutablePureComponent {
   };
 
   handleClick = () => {
-    const { conversationId, unread, markRead, onSelect } = this.props;
+    if (!this.context.router) {
+      return;
+    }
+
+    const { lastStatus, unread, markRead } = this.props;
 
     if (unread) {
       markRead();
     }
 
-    if (onSelect) {
-      onSelect(conversationId);
-    } else if (this.context.router) {
-      const { lastStatus } = this.props;
-      this.context.router.history.push(`/@${lastStatus.getIn(['account', 'acct'])}/${lastStatus.get('id')}`);
-    }
+    this.context.router.history.push(`/@${lastStatus.getIn(['account', 'acct'])}/${lastStatus.get('id')}`);
   };
 
   handleMarkAsRead = () => {
@@ -119,7 +116,7 @@ class Conversation extends ImmutablePureComponent {
   };
 
   render () {
-    const { accounts, lastStatus, unread, scrollKey, intl, isSelected } = this.props;
+    const { accounts, lastStatus, unread, scrollKey, intl } = this.props;
 
     if (lastStatus === null) {
       return null;
@@ -151,7 +148,7 @@ class Conversation extends ImmutablePureComponent {
 
     return (
       <HotKeys handlers={handlers}>
-        <div className={classNames('conversation focusable muted', { 'conversation--unread': unread, 'conversation--selected': isSelected })} tabIndex={0}>
+        <div className={classNames('conversation focusable muted', { 'conversation--unread': unread })} tabIndex={0}>
           <div className='conversation__avatar' onClick={this.handleClick} role='presentation'>
             <AvatarComposite accounts={accounts} size={48} />
           </div>

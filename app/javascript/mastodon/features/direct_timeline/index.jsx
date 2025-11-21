@@ -14,14 +14,9 @@ import Column from 'mastodon/components/column';
 import ColumnHeader from 'mastodon/components/column_header';
 
 import ConversationsListContainer from './containers/conversations_list_container';
-import ChatView from './components/chat_view';
 
 const messages = defineMessages({
   title: { id: 'column.direct', defaultMessage: 'Private mentions' },
-});
-
-const mapStateToProps = (state) => ({
-  conversations: state.get('conversations'),
 });
 
 class DirectTimeline extends PureComponent {
@@ -32,11 +27,6 @@ class DirectTimeline extends PureComponent {
     intl: PropTypes.object.isRequired,
     hasUnread: PropTypes.bool,
     multiColumn: PropTypes.bool,
-    conversations: PropTypes.object,
-  };
-
-  state = {
-    selectedConversationId: null,
   };
 
   handlePin = () => {
@@ -83,18 +73,9 @@ class DirectTimeline extends PureComponent {
     this.props.dispatch(expandConversations({ maxId }));
   };
 
-  handleConversationSelect = (conversationId) => {
-    this.setState({ selectedConversationId: conversationId });
-  };
-
   render () {
-    const { intl, hasUnread, columnId, multiColumn, conversations } = this.props;
-    const { selectedConversationId } = this.state;
+    const { intl, hasUnread, columnId, multiColumn } = this.props;
     const pinned = !!columnId;
-
-    const selectedConversation = selectedConversationId
-      ? conversations.getIn(['items', selectedConversationId])
-      : null;
 
     return (
       <Column bindToDocument={!multiColumn} ref={this.setRef} label={intl.formatMessage(messages.title)}>
@@ -109,26 +90,16 @@ class DirectTimeline extends PureComponent {
           multiColumn={multiColumn}
         />
 
-        <div className='direct-timeline__layout'>
-          <div className='direct-timeline__conversations'>
-            <ConversationsListContainer
-              trackScroll={!pinned}
-              scrollKey={`direct_timeline-${columnId}`}
-              timelineId='direct'
-              bindToDocument={!multiColumn}
-              onLoadMore={this.handleLoadMore}
-              onSelect={this.handleConversationSelect}
-              selectedId={selectedConversationId}
-              prepend={<div className='follow_requests-unlocked_explanation'><span><FormattedMessage id='compose_form.encryption_warning' defaultMessage='Posts on Mastodon are not end-to-end encrypted. Do not share any dangerous information over Mastodon.' /> <a href='/terms' target='_blank'><FormattedMessage id='compose_form.direct_message_warning_learn_more' defaultMessage='Learn more' /></a></span></div>}
-              alwaysPrepend
-              emptyMessage={<FormattedMessage id='empty_column.direct' defaultMessage="You don't have any private mentions yet. When you send or receive one, it will show up here." />}
-            />
-          </div>
-
-          <div className='direct-timeline__chat'>
-            <ChatView conversation={selectedConversation} />
-          </div>
-        </div>
+        <ConversationsListContainer
+          trackScroll={!pinned}
+          scrollKey={`direct_timeline-${columnId}`}
+          timelineId='direct'
+          bindToDocument={!multiColumn}
+          onLoadMore={this.handleLoadMore}
+          prepend={<div className='follow_requests-unlocked_explanation'><span><FormattedMessage id='compose_form.encryption_warning' defaultMessage='Posts on Mastodon are not end-to-end encrypted. Do not share any dangerous information over Mastodon.' /> <a href='/terms' target='_blank'><FormattedMessage id='compose_form.direct_message_warning_learn_more' defaultMessage='Learn more' /></a></span></div>}
+          alwaysPrepend
+          emptyMessage={<FormattedMessage id='empty_column.direct' defaultMessage="You don't have any private mentions yet. When you send or receive one, it will show up here." />}
+        />
 
         <Helmet>
           <title>{intl.formatMessage(messages.title)}</title>
@@ -140,4 +111,4 @@ class DirectTimeline extends PureComponent {
 
 }
 
-export default connect(mapStateToProps)(injectIntl(DirectTimeline));
+export default connect()(injectIntl(DirectTimeline));

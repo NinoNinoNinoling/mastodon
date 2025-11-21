@@ -16,8 +16,6 @@ export default class ConversationsList extends ImmutablePureComponent {
     hasMore: PropTypes.bool,
     isLoading: PropTypes.bool,
     onLoadMore: PropTypes.func,
-    onSelect: PropTypes.func,
-    selectedId: PropTypes.string,
   };
 
   getCurrentIndex = id => this.props.conversations.findIndex(x => x.get('id') === id);
@@ -59,7 +57,7 @@ export default class ConversationsList extends ImmutablePureComponent {
   }, 300, { leading: true });
 
   render () {
-    const { conversations, isLoading, onLoadMore, onSelect, selectedId, ...other } = this.props;
+    const { conversations, isLoading, onLoadMore, ...other } = this.props;
 
     return (
       <ScrollableList {...other} isLoading={isLoading} showLoading={isLoading && conversations.isEmpty()} onLoadMore={onLoadMore && this.handleLoadOlder} ref={this.setRef}>
@@ -70,8 +68,6 @@ export default class ConversationsList extends ImmutablePureComponent {
             onMoveUp={this.handleMoveUp}
             onMoveDown={this.handleMoveDown}
             scrollKey={this.props.scrollKey}
-            onSelect={onSelect}
-            isSelected={item.get('id') === selectedId}
           />
         ))}
       </ScrollableList>
