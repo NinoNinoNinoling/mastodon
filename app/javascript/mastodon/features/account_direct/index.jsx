@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
-import {defineMessages, FormattedMessage } from 'react-intl';
+
+import { defineMessages, FormattedMessage } from 'react-intl';
 import { Helmet } from 'react-helmet';
 
 import { List as ImmutableList } from 'immutable';
@@ -7,16 +8,17 @@ import ImmutablePropTypes from 'react-immutable-proptypes';
 import ImmutablePureComponent from 'react-immutable-pure-component';
 import { connect } from 'react-redux';
 
+import { lookupAccount, fetchAccount } from '../../actions/accounts';
+import { fetchFeaturedTags } from '../../actions/featured_tags';
+import { expandAccountDirectTimeline } from '../../actions/timelines';
+import ColumnBackButtonSlim from '../../components/column_back_button_slim';
+import { LoadingIndicator } from '../../components/loading_indicator';
+import StatusList from '../../components/status_list';
 import { TimelineHint } from 'mastodon/components/timeline_hint';
 import BundleColumnError from 'mastodon/features/ui/components/bundle_column_error';
 import { normalizeForLookup } from 'mastodon/reducers/accounts_map';
 import { getAccountHidden } from 'mastodon/selectors';
-import ColumnBackButtonSlim from '../../components/column_back_button_slim';
-import { lookupAccount, fetchAccount } from '../../actions/accounts';
-import { fetchFeaturedTags } from '../../actions/featured_tags';
-import {  expandAccountDirectTimeline} from '../../actions/timelines';
-import { LoadingIndicator } from '../../components/loading_indicator';
-import StatusList from '../../components/status_list';
+
 import Column from '../ui/components/column';
 
 

@@ -28,22 +28,10 @@ const messages = defineMessages({
   suspendedExplanation: { id: 'about.domain_blocks.suspended.explanation', defaultMessage: 'No data from this server will be processed, stored or exchanged, making any interaction or communication with users from this server impossible.' },
 });
 
-const severityMessages = {
-  silence: {
-    title: messages.silenced,
-    explanation: messages.silencedExplanation,
-  },
-
-  suspend: {
-    title: messages.suspended,
-    explanation: messages.suspendedExplanation,
-  },
-};
 
 const mapStateToProps = state => ({
   server: state.getIn(['server', 'server']),
   extendedDescription: state.getIn(['server', 'extendedDescription']),
-  domainBlocks: state.getIn(['server', 'domainBlocks']),
 });
 
 class Section extends PureComponent {
@@ -112,7 +100,7 @@ class About extends PureComponent {
   };
 
   render () {
-    const { multiColumn, intl, server, extendedDescription, domainBlocks } = this.props;
+    const { multiColumn, intl, server, extendedDescription } = this.props;
     const isLoading = server.get('isLoading');
 
     return (
