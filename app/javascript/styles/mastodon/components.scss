@@ -9497,14 +9497,6 @@ noscript {
     }
   }
 
-  &:not(&--own) {
-    .chat-message__bubble {
-      background: lighten($ui-base-color, 8%);
-      color: $primary-text-color;
-      border-radius: 18px 18px 18px 4px;
-    }
-  }
-
   &__avatar {
     flex-shrink: 0;
     width: 32px;
@@ -9515,6 +9507,9 @@ noscript {
     padding: 10px 14px;
     word-wrap: break-word;
     word-break: break-word;
+    background: lighten($ui-base-color, 8%);
+    color: $primary-text-color;
+    border-radius: 18px 18px 18px 4px;
   }
 
   &__author {
